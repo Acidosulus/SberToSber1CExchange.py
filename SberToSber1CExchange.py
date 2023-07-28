@@ -106,17 +106,17 @@ class SberFile():
 		path = self.path + '_1CExchange.txt'
 		logging.info(f"Saving data to file:{path}")
 		result = self.header_pattern+'\n'
-		for row in self.data:
+		for counter, row in enumerate(self.data):
 			agrement =get_details_from_STEK_by_agreement_number(self.agreements_data, row['nc'])
 			result += f"""СекцияДокумент=Платежное поручение
-Номер={self.pay_order_number}
+Номер={self.pay_order_number}_{counter}
 Дата={row['date'].replace('-','.')}
-Сумма={row['total']}
+Сумма={row['total'].replace(',','.')}
 ПлательщикСчет=
 ДатаСписано=
 Плательщик={agrement['name']}
 ПлательщикИНН={agrement['inn']}
-ПлательщикКПП={agrement['kpp']}
+ПлательщикКПП={(agrement['kpp'] if agrement['kpp']=='0' else '')}
 ПлательщикРасчСчет=
 ПлательщикБанк1=
 ПлательщикБИК=
@@ -142,7 +142,7 @@ class SberFile():
 ПоказательДаты=
 ПоказательТипа=
 Очередность=5
-НазначениеПлатежа={row['nc']}/{row['fio']}/{row['address']}/{row['period']}
+НазначениеПлатежа={row['nc']} / {row['fio']} / {row['address']} / {row['period']}
 КонецДокумента\n"""
 		result += 'КонецФайла'
 		print(path)
