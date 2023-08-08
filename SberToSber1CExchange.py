@@ -1,10 +1,12 @@
-import sys
+import time
+import datetime
 import os
 import pprint
 import logging
 from  stek import *
 from click import echo, style  
 import pandas
+import os
 
 logging.basicConfig(level=logging.INFO, filename="convert.log",filemode="a", format="%(asctime)s %(levelname)s %(message)s")
 
@@ -38,12 +40,13 @@ def sx(source_string='', left_split='', right_split='', index=1):
 
 
 class SberFile():
-	def __init__(self, path:str, acc:str):
+	def __init__(self, path:str, taget_path:str):
 		logging.info(f"Loading agreements data from STEK")
 		self.agreements_data = Get_list_of_agreements_details()
 		logging.info(f"Loading data from file:{path}")
 		self.path = path
-		self.acc = acc
+		self.taget_path = taget_path
+		self.acc = ('40702810338000152290' if 'SB812' in path else ('40702810738000152366' if 'SB811' in path else ''))
 		self.header_pattern = ''
 		self.date_from_file = sx(path[::-1],'txt.','_')[::-1]
 		self.data = self.LoadSberFile()
@@ -104,7 +107,7 @@ class SberFile():
 		if len(self.data)<0:
 			logging.info(f"No data to save")
 			return
-		path = self.path + '_1CExchange.txt'
+		path = self.taget_path + os.path.basename(self.path) + '_1CExchange.txt'
 		logging.info(f"Saving data to file:{path}")
 		result = self.header_pattern+'\n'
 		ll_array = []
@@ -186,12 +189,56 @@ class SberFile():
 		logging.info(f'Saved Excel file to {path}.xls')
 
 
-sf = SberFile(sys.argv[1], sys.argv[2])
-#prnt(sf.SaveSber1CExchange())
+def IsPartOfFileNameInList(partoffilename:str, lst:list) -> bool:
+	for name in lst:
+		if partoffilename in name:
+			return True
+	return False
 
-#prnt(sf.date_from_file)
+def addSecs(tm, secs):
+	fulldate = datetime.datetime(100, 1, 1, tm.hour, tm.minute, tm.second)
+	fulldate = fulldate + datetime.timedelta(seconds=secs)
+	return fulldate.time()
 
-#prnt(sf.header_pattern)
+
+def Performance():
+	sourcefilenames = config['paths']['soursefolder']
+	included_extensions = ['txt']
+	source_file_names = [fn for fn in os.listdir(sourcefilenames)  if any(fn.endswith(ext) for ext in included_extensions) and ('SB811' in fn or 'SB812' in fn)]
+	#print(source_file_names)
+
+	targetfilenames = config['paths']['targetfolder']
+	included_extensions = ['txt']
+	target_file_names = [fn for fn in os.listdir(targetfilenames)  if any(fn.endswith(ext) for ext in included_extensions) and ('.txt_1CExchange.txt' in fn)]
+	#print(target_file_names)
+
+	for sourcefile in source_file_names:
+		if not IsPartOfFileNameInList(sourcefile, target_file_names):
+			echo(style(text = 'source:', bg='bright_black', fg='bright_yellow')+' '+style(text = sourcefilenames + sourcefile, fg='bright_green'))
+			echo(style(text = 'target:', bg='bright_black', fg='bright_yellow')+' '+style(text = targetfilenames, fg='bright_blue'))
+			sf = SberFile(sourcefilenames + sourcefile, targetfilenames)
+			print()
+		else:
+			echo(style(text = 'skipped ', bg='bright_black', fg='bright_red')+' '+style(text = 'source:', bg='bright_black', fg='bright_yellow')+' '+style(text = sourcefilenames + sourcefile, fg='bright_green'))
+
+
+
+config = configparser.ConfigParser()
+config.read("settings.ini", encoding='UTF-8')
+delay = int(config['run']['waitforseconds'])
+if delay == 0:
+	Performance()
+else:
+	while True:
+		Performance()
+		echo(style(text=f'sleep for {addSecs(datetime.datetime.now().time(), delay)}', bg='bright_black', fg='bright_cyan'))
+		time.sleep(delay)
+
+
+		
+
+
+
 
 
 
